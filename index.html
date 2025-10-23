@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NIGHTSPLIT: A Two-Choice Tale</title>
-  <link rel="stylesheet" href="styles/main.css" />
+  <title>SHADOW CIRCUIT — A Two-Choice Web Tale</title>
+  <link rel="stylesheet" href="./main.css" />
 </head>
 <body>
   <div id="app" class="app">
@@ -39,13 +39,12 @@
   </div>
 
   <script type="module">
-    import { initAudio, setMasterVolume, playOneShot, loopAmbient } from './scripts/audio.js';
-    import { createInitialState, loadState, saveState, clearState } from './scripts/state.js';
-    import { STORY, getScene } from './scripts/story.js';
-    import { renderScene, bindChoiceHandlers, shake, setBackground, setEndStyle } from './scripts/ui.js';
-    import { Engine } from './scripts/engine.js';
+    import { initAudio, setMasterVolume, playOneShot, loopAmbient } from './audio.js';
+    import { createInitialState, loadState, saveState, clearState } from './state.js';
+    import { getScene } from './story.js';
+    import { renderScene, bindChoiceHandlers, shake, setBackground, setEndStyle } from './ui.js';
+    import { Engine } from './engine.js';
 
-    // Bootstrap
     const $ = sel => document.querySelector(sel);
     const titleEl   = $('#title');
     const proseEl   = $('#prose');
@@ -60,21 +59,19 @@
         setEndStyle(document.body, !!scene.ending);
         renderScene({ titleEl, proseEl, scene });
         bindChoiceHandlers(choicesEl, scene, state, async ({ to, setState }) => {
-          // apply side-effects before navigation
-          if (typeof setState === 'function') setState(state);
+          if (typeof setState === 'function') setState(state); // why: commit choice side-effects before nav
           saveState(state);
           shake($('#stage'));
-          await playOneShot(scene.sfx || 'tick');
+          try { await playOneShot(scene.sfx || 'tick'); } catch {}
           engine.goto(to);
         });
       },
       onStart(scene) {
         setBackground(bgEl, scene.bg);
-        loopAmbient('noir');
+        try { loopAmbient('noir'); } catch {}
       }
     });
 
-    // Continue / New
     $('#btn-continue').addEventListener('click', () => {
       const s = loadState();
       if (s?.current) engine.resume(s);
@@ -84,13 +81,13 @@
       engine.start(createInitialState());
     });
 
-    // Volume
     initAudio().then(() => {
       const s = loadState();
       const vol = s?.volume ?? 0.35;
       volEl.value = vol;
       setMasterVolume(vol);
-    });
+    }).catch(()=>{ /* audio optional */ });
+
     volEl.addEventListener('input', (e) => {
       const v = Number(e.target.value);
       setMasterVolume(v);
@@ -99,7 +96,6 @@
       saveState(s);
     });
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
       if (e.key === '1') engine.choose(0);
       if (e.key === '2') engine.choose(1);
@@ -109,14 +105,9 @@
       }
     });
 
-    // Autostart: continue if possible, else new
     const saved = loadState();
-    if (saved?.current) {
-      engine.resume(saved);
-    } else {
-      engine.start(createInitialState());
-    }
+    if (saved?.current) engine.resume(saved);
+    else engine.start(createInitialState());
   </script>
 </body>
 </html>
-
